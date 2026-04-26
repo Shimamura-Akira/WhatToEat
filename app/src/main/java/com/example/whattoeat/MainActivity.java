@@ -23,6 +23,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
+import androidx.transition.TransitionManager;
+import com.google.android.material.transition.MaterialSharedAxis;
+
 public class MainActivity extends AppCompatActivity {
     
     private ActivityMainBinding binding;
@@ -87,6 +90,16 @@ public class MainActivity extends AppCompatActivity {
         // 设置底部导航栏点击事件
         binding.bottomNavigation.setOnItemSelectedListener(item -> {
             int itemId = item.getItemId();
+            int currentItemId = binding.bottomNavigation.getSelectedItemId();
+            
+            if (itemId == currentItemId) return true;
+
+            // 增加平滑的左右滑动转场动画 (Material Shared Axis X)
+            boolean forward = itemId == R.id.nav_list; // 从左(home)向右(list)滑动为正向
+            MaterialSharedAxis sharedAxis = new MaterialSharedAxis(MaterialSharedAxis.X, forward);
+            sharedAxis.setDuration(300);
+            TransitionManager.beginDelayedTransition(binding.main, sharedAxis);
+
             if (itemId == R.id.nav_home) {
                 binding.groupHome.setVisibility(android.view.View.VISIBLE);
                 binding.groupList.setVisibility(android.view.View.GONE);
