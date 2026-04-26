@@ -14,6 +14,7 @@ public class FoodAdapter extends ListAdapter<FoodItem, FoodAdapter.FoodViewHolde
 
     private final OnItemDeleteListener deleteListener;
     private final OnItemToggleListener toggleListener;
+    private final OnItemClickListener clickListener;
 
     public interface OnItemDeleteListener {
         void onDeleteClick(FoodItem item);
@@ -23,7 +24,11 @@ public class FoodAdapter extends ListAdapter<FoodItem, FoodAdapter.FoodViewHolde
         void onToggle(FoodItem item, boolean isChecked);
     }
 
-    protected FoodAdapter(OnItemDeleteListener deleteListener, OnItemToggleListener toggleListener) {
+    public interface OnItemClickListener {
+        void onItemClick(FoodItem item);
+    }
+
+    protected FoodAdapter(OnItemDeleteListener deleteListener, OnItemToggleListener toggleListener, OnItemClickListener clickListener) {
         super(new DiffUtil.ItemCallback<FoodItem>() {
             @Override
             public boolean areItemsTheSame(@NonNull FoodItem oldItem, @NonNull FoodItem newItem) {
@@ -37,6 +42,7 @@ public class FoodAdapter extends ListAdapter<FoodItem, FoodAdapter.FoodViewHolde
         });
         this.deleteListener = deleteListener;
         this.toggleListener = toggleListener;
+        this.clickListener = clickListener;
     }
 
     @NonNull
@@ -83,6 +89,12 @@ public class FoodAdapter extends ListAdapter<FoodItem, FoodAdapter.FoodViewHolde
             binding.ivDelete.setOnClickListener(v -> {
                 if (deleteListener != null) {
                     deleteListener.onDeleteClick(item);
+                }
+            });
+
+            binding.getRoot().setOnClickListener(v -> {
+                if (clickListener != null) {
+                    clickListener.onItemClick(item);
                 }
             });
         }

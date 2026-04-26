@@ -88,7 +88,8 @@ public class MainActivity extends AppCompatActivity {
                 dataManager.saveFoodList(foodList);
                 adapter.submitList(new ArrayList<>(foodList));
                 updateRouletteData();
-            }
+            },
+            item -> showEditDialog(item)
         );
         
         binding.recyclerView.setLayoutManager(new LinearLayoutManager(this));
@@ -156,6 +157,46 @@ public class MainActivity extends AppCompatActivity {
                     dataManager.saveFoodList(foodList);
                     adapter.submitList(new ArrayList<>(foodList));
                     updateRouletteData();
+                })
+                .setNegativeButton("取消", null)
+                .show();
+    }
+
+    private void showEditDialog(FoodItem editItem) {
+        EditText editText = new EditText(this);
+        editText.setText(editItem.getName());
+        editText.setSelection(editText.getText().length());
+        
+        new AlertDialog.Builder(this)
+                .setTitle("编辑候选菜单")
+                .setView(editText)
+                .setPositiveButton("保存", (dialog, which) -> {
+                    String name = editText.getText().toString().trim();
+                    if (name.isEmpty()) {
+                        Toast.makeText(this, "菜单名不能为空", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    
+                    if (name.equals(editItem.getName())) {
+                        return; // 没有修改
+                    }
+
+                    for (FoodItem item : foodList) {
+                        if (item != editItem && item.getName().equals(name)) {
+                            Toast.makeText(this, "该菜单已存在", Toast.LENGTH_SHORT).show();
+                            return;
+                        }
+                    }
+
+                    // 寻找修改项在列表中的位置
+                    int index = adapter.getCurrentList().indexOf(editItem);
+                    if (index != -1) {
+                        editItem.setName(name);
+                        dataManager.saveFoodList(foodList);
+                        adapter.submitList(new ArrayList<>(foodList));
+                        adapter.notifyItemChanged(index);
+                        updateRouletteData();
+                    }
                 })
                 .setNegativeButton("取消", null)
                 .show();
