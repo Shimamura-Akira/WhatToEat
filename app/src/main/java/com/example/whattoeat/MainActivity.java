@@ -60,6 +60,16 @@ public class MainActivity extends AppCompatActivity {
         initView();
     }
 
+    private void updateRouletteData() {
+        List<String> activeNames = new ArrayList<>();
+        for (FoodItem item : foodList) {
+            if (item.isEnabled()) {
+                activeNames.add(item.getName());
+            }
+        }
+        binding.rouletteView.setData(activeNames);
+    }
+
     private void initData() {
         dataManager = new DataManager(this);
         foodList = new ArrayList<>(dataManager.getFoodList());
@@ -71,21 +81,30 @@ public class MainActivity extends AppCompatActivity {
                 foodList.remove(item);
                 dataManager.saveFoodList(foodList);
                 adapter.submitList(new ArrayList<>(foodList));
+                updateRouletteData();
             },
             (item, isChecked) -> {
                 item.setEnabled(isChecked);
                 dataManager.saveFoodList(foodList);
-                // Trigger view update in adapter for alpha change smoothly
                 adapter.submitList(new ArrayList<>(foodList));
+                updateRouletteData();
             }
         );
         
         binding.recyclerView.setLayoutManager(new LinearLayoutManager(this));
         binding.recyclerView.setAdapter(adapter);
         adapter.submitList(new ArrayList<>(foodList));
+        updateRouletteData();
 
         binding.fabAdd.setOnClickListener(v -> showAddDialog());
         binding.btnStart.setOnClickListener(v -> startRolling());
+        
+        binding.rouletteView.setSpinListener(result -> {
+             binding.btnStart.setEnabled(true);
+             binding.tvResult.setText(result);
+             isRolling = false;
+             showResultDialog(result);
+        });
 
         // 设置底部导航栏点击事件
         binding.bottomNavigation.setOnItemSelectedListener(item -> {
@@ -136,6 +155,7 @@ public class MainActivity extends AppCompatActivity {
                     foodList.add(newItem);
                     dataManager.saveFoodList(foodList);
                     adapter.submitList(new ArrayList<>(foodList));
+                    updateRouletteData();
                 })
                 .setNegativeButton("取消", null)
                 .show();
@@ -166,30 +186,10 @@ public class MainActivity extends AppCompatActivity {
 
         isRolling = true;
         binding.btnStart.setEnabled(false);
-
-        rollRunnable = new Runnable() {
-            @Override
-            public void run() {
-                int index = random.nextInt(activeList.size());
-                binding.tvResult.setText(activeList.get(index).getName());
-                binding.tvResult.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK);
-                handler.postDelayed(this, 50); // Change text every 50ms
-            }
-        };
-
-        handler.post(rollRunnable);
-
-        // Stop rolling after 2 seconds
-        handler.postDelayed(() -> {
-            handler.removeCallbacks(rollRunnable);
-            isRolling = false;
-            binding.btnStart.setEnabled(true);
-            
-            // The text already holds the final randomly chosen result from the last tick
-            String result = binding.tvResult.getText().toString();
-            binding.tvResult.performHapticFeedback(HapticFeedbackConstants.CONFIRM);
-            showResultDialog(result);
-        }, 2000);
+        binding.tvResult.setText("等待抽取...");
+        
+        int winnerIndex = random.nextInt(activeList.size());
+        binding.rouletteView.spin(winnerIndex);
     }
 
     private void showResultDialog(String result) {
