@@ -83,6 +83,21 @@ public class MainActivity extends AppCompatActivity {
 
         binding.fabAdd.setOnClickListener(v -> showAddDialog());
         binding.btnStart.setOnClickListener(v -> startRolling());
+
+        // 设置底部导航栏点击事件
+        binding.bottomNavigation.setOnItemSelectedListener(item -> {
+            int itemId = item.getItemId();
+            if (itemId == R.id.nav_home) {
+                binding.groupHome.setVisibility(android.view.View.VISIBLE);
+                binding.groupList.setVisibility(android.view.View.GONE);
+                return true;
+            } else if (itemId == R.id.nav_list) {
+                binding.groupHome.setVisibility(android.view.View.GONE);
+                binding.groupList.setVisibility(android.view.View.VISIBLE);
+                return true;
+            }
+            return false;
+        });
     }
 
     private void showAddDialog() {
