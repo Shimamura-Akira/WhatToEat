@@ -13,12 +13,17 @@ import com.example.whattoeat.databinding.ItemFoodBinding;
 public class FoodAdapter extends ListAdapter<FoodItem, FoodAdapter.FoodViewHolder> {
 
     private final OnItemDeleteListener deleteListener;
+    private final OnItemToggleListener toggleListener;
 
     public interface OnItemDeleteListener {
         void onDeleteClick(FoodItem item);
     }
 
-    protected FoodAdapter(OnItemDeleteListener deleteListener) {
+    public interface OnItemToggleListener {
+        void onToggle(FoodItem item, boolean isChecked);
+    }
+
+    protected FoodAdapter(OnItemDeleteListener deleteListener, OnItemToggleListener toggleListener) {
         super(new DiffUtil.ItemCallback<FoodItem>() {
             @Override
             public boolean areItemsTheSame(@NonNull FoodItem oldItem, @NonNull FoodItem newItem) {
@@ -31,6 +36,7 @@ public class FoodAdapter extends ListAdapter<FoodItem, FoodAdapter.FoodViewHolde
             }
         });
         this.deleteListener = deleteListener;
+        this.toggleListener = toggleListener;
     }
 
     @NonNull
@@ -57,6 +63,23 @@ public class FoodAdapter extends ListAdapter<FoodItem, FoodAdapter.FoodViewHolde
 
         public void bind(FoodItem item) {
             binding.tvFoodName.setText(item.getName());
+            
+            // Remove listener so programmatic changes don't trigger it during recycling
+            binding.switchEnable.setOnCheckedChangeListener(null);
+            binding.switchEnable.setChecked(item.isEnabled());
+            
+            // Alpha visual feedback for the entire card
+            binding.getRoot().setAlpha(item.isEnabled() ? 1.0f : 0.5f);
+
+            binding.switchEnable.setOnCheckedChangeListener((buttonView, isChecked) -> {
+                // 实时更新当前卡片的半透明状态
+                binding.getRoot().setAlpha(isChecked ? 1.0f : 0.5f);
+                
+                if (toggleListener != null) {
+                    toggleListener.onToggle(item, isChecked);
+                }
+            });
+
             binding.ivDelete.setOnClickListener(v -> {
                 if (deleteListener != null) {
                     deleteListener.onDeleteClick(item);

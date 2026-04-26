@@ -14,6 +14,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 
 import android.widget.EditText;
 import android.widget.Toast;
+import android.view.HapticFeedbackConstants;
 
 import com.example.whattoeat.databinding.ActivityMainBinding;
 import com.google.android.material.color.DynamicColors;
@@ -62,11 +63,19 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void initView() {
-        adapter = new FoodAdapter(item -> {
-            foodList.remove(item);
-            dataManager.saveFoodList(foodList);
-            adapter.submitList(new ArrayList<>(foodList));
-        });
+        adapter = new FoodAdapter(
+            item -> {
+                foodList.remove(item);
+                dataManager.saveFoodList(foodList);
+                adapter.submitList(new ArrayList<>(foodList));
+            },
+            (item, isChecked) -> {
+                item.setEnabled(isChecked);
+                dataManager.saveFoodList(foodList);
+                // Trigger view update in adapter for alpha change smoothly
+                adapter.submitList(new ArrayList<>(foodList));
+            }
+        );
         
         binding.recyclerView.setLayoutManager(new LinearLayoutManager(this));
         binding.recyclerView.setAdapter(adapter);
@@ -106,15 +115,23 @@ public class MainActivity extends AppCompatActivity {
 
     private void startRolling() {
         if (isRolling) return;
+
+        List<FoodItem> activeList = new ArrayList<>();
+        for (FoodItem item : foodList) {
+            if (item.isEnabled()) {
+                activeList.add(item);
+            }
+        }
         
-        if (foodList.isEmpty()) {
-            Toast.makeText(this, "请先添加候选菜单", Toast.LENGTH_SHORT).show();
+        if (activeList.isEmpty()) {
+            Toast.makeText(this, "请先勾选至少一个候选菜单", Toast.LENGTH_SHORT).show();
             return;
         }
         
-        if (foodList.size() == 1) {
-            String result = foodList.get(0).getName();
+        if (activeList.size() == 1) {
+            String result = activeList.get(0).getName();
             binding.tvResult.setText(result);
+            binding.tvResult.performHapticFeedback(HapticFeedbackConstants.CONFIRM);
             showResultDialog(result);
             return;
         }
@@ -125,8 +142,9 @@ public class MainActivity extends AppCompatActivity {
         rollRunnable = new Runnable() {
             @Override
             public void run() {
-                int index = random.nextInt(foodList.size());
-                binding.tvResult.setText(foodList.get(index).getName());
+                int index = random.nextInt(activeList.size());
+                binding.tvResult.setText(activeList.get(index).getName());
+                binding.tvResult.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK);
                 handler.postDelayed(this, 50); // Change text every 50ms
             }
         };
@@ -141,6 +159,7 @@ public class MainActivity extends AppCompatActivity {
             
             // The text already holds the final randomly chosen result from the last tick
             String result = binding.tvResult.getText().toString();
+            binding.tvResult.performHapticFeedback(HapticFeedbackConstants.CONFIRM);
             showResultDialog(result);
         }, 2000);
     }
