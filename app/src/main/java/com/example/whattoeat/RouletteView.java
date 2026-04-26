@@ -23,11 +23,12 @@ public class RouletteView extends View {
     private List<String> dataList = new ArrayList<>();
     private float currentRotation = 0f;
     private ValueAnimator animator;
+    private boolean isSpinning = false;
     private SpinListener spinListener;
     private int lastTick = 0;
 
     public interface SpinListener {
-        void onSpinEnd(String result);
+        void onSpinEnd(String result, boolean isRigged);
     }
 
     public RouletteView(Context context, AttributeSet attrs) {
@@ -191,10 +192,11 @@ public class RouletteView extends View {
         return predefined[index % predefined.length];
     }
 
-    public void spin(int targetIndex) {
-        if (animator != null && animator.isRunning()) return;
+    public void spin(int targetIndex, boolean isRigged) {
+        if (isSpinning) return;
         if (dataList.isEmpty()) return;
 
+        isSpinning = true;
         int size = dataList.size();
         float sweepAngle = 360f / size;
         
@@ -212,34 +214,71 @@ public class RouletteView extends View {
         }
 
         lastTick = (int) (currentRotation / sweepAngle);
+        final float finalTotalRotation = totalRotation;
+        final float finalSweepAngle = sweepAngle;
+        final int finalTargetIndex = targetIndex;
 
-        animator = ValueAnimator.ofFloat(currentRotation, totalRotation);
-        animator.setDuration(4000); // 4 seconds spin for tension
-        animator.setInterpolator(new DecelerateInterpolator(1.5f));
-        animator.addUpdateListener(animation -> {
-            currentRotation = (float) animation.getAnimatedValue();
+        if (isRigged) {
+            // 假意停在转动方向的上一格（因为顺时针转，上一格指针角度多了一个sweepAngle）
+            float fakeRotation = finalTotalRotation - finalSweepAngle;
             
-            // Play tick sound/haptic when crossing a boundary
-            int currentTick = (int) ((currentRotation - 270f) / sweepAngle);
-            if (currentTick != lastTick) {
-                performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK);
-                lastTick = currentTick;
-            }
+            animator = ValueAnimator.ofFloat(currentRotation, fakeRotation);
+            animator.setDuration(4000); 
+            animator.setInterpolator(new DecelerateInterpolator(1.5f));
+            animator.addUpdateListener(animation -> updateRotation((float) animation.getAnimatedValue(), finalSweepAngle));
             
-            invalidate();
-        });
-
-        animator.addListener(new AnimatorListenerAdapter() {
-            @Override
-            public void onAnimationEnd(Animator animation) {
-                currentRotation = currentRotation % 360f;
-                performHapticFeedback(HapticFeedbackConstants.CONFIRM);
-                if (spinListener != null) {
-                    spinListener.onSpinEnd(dataList.get(targetIndex));
+            animator.addListener(new AnimatorListenerAdapter() {
+                @Override
+                public void onAnimationEnd(Animator animation) {
+                    // 悬停一会儿制造马上要停在这个选项的错觉，然后突然滑向下一格（黑幕出现）
+                    postDelayed(() -> {
+                        animator = ValueAnimator.ofFloat(fakeRotation, finalTotalRotation);
+                        animator.setDuration(300); // 突然飞速转一格
+                        animator.setInterpolator(new android.view.animation.OvershootInterpolator(1.5f)); 
+                        animator.addUpdateListener(anim -> updateRotation((float) anim.getAnimatedValue(), finalSweepAngle));
+                        animator.addListener(new AnimatorListenerAdapter() {
+                            @Override
+                            public void onAnimationEnd(Animator anim) {
+                                finalizeSpin(finalTargetIndex, true);
+                            }
+                        });
+                        animator.start();
+                    }, 500); 
                 }
-            }
-        });
+            });
+            animator.start();
+        } else {
+            animator = ValueAnimator.ofFloat(currentRotation, finalTotalRotation);
+            animator.setDuration(4000); 
+            animator.setInterpolator(new DecelerateInterpolator(1.5f));
+            animator.addUpdateListener(animation -> updateRotation((float) animation.getAnimatedValue(), finalSweepAngle));
+            animator.addListener(new AnimatorListenerAdapter() {
+                @Override
+                public void onAnimationEnd(Animator animation) {
+                    finalizeSpin(finalTargetIndex, false);
+                }
+            });
+            animator.start();
+        }
+    }
 
-        animator.start();
+    private void updateRotation(float val, float sweepAngle) {
+        currentRotation = val;
+        // Play tick sound/haptic when crossing a boundary
+        int currentTick = (int) ((currentRotation - 270f) / sweepAngle);
+        if (currentTick != lastTick) {
+            performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK);
+            lastTick = currentTick;
+        }
+        invalidate();
+    }
+
+    private void finalizeSpin(int targetIndex, boolean isRigged) {
+        isSpinning = false;
+        currentRotation = currentRotation % 360f;
+        performHapticFeedback(HapticFeedbackConstants.CONFIRM);
+        if (spinListener != null) {
+            spinListener.onSpinEnd(dataList.get(targetIndex), isRigged);
+        }
     }
 }

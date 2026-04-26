@@ -100,11 +100,11 @@ public class MainActivity extends AppCompatActivity {
         binding.fabAdd.setOnClickListener(v -> showAddDialog());
         binding.btnStart.setOnClickListener(v -> startRolling());
         
-        binding.rouletteView.setSpinListener(result -> {
+        binding.rouletteView.setSpinListener((result, isRigged) -> {
              binding.btnStart.setEnabled(true);
              binding.tvResult.setText(result);
              isRolling = false;
-             showResultDialog(result);
+             showResultDialog(result, isRigged);
         });
 
         // 设置底部导航栏点击事件
@@ -221,7 +221,7 @@ public class MainActivity extends AppCompatActivity {
             String result = activeList.get(0).getName();
             binding.tvResult.setText(result);
             binding.tvResult.performHapticFeedback(HapticFeedbackConstants.CONFIRM);
-            showResultDialog(result);
+            showResultDialog(result, false);
             return;
         }
 
@@ -230,14 +230,19 @@ public class MainActivity extends AppCompatActivity {
         binding.tvResult.setText("等待抽取...");
         
         int winnerIndex = random.nextInt(activeList.size());
-        binding.rouletteView.spin(winnerIndex);
+        boolean isRigged = activeList.size() > 1 && random.nextInt(100) < 20; // 20%的几率触发彩蛋
+        binding.rouletteView.spin(winnerIndex, isRigged);
     }
 
-    private void showResultDialog(String result) {
+    private void showResultDialog(String result, boolean isRigged) {
+        String title = isRigged ? "哎呀！它滑过去了！" : "决定了！";
+        String positiveBtn = isRigged ? "有黑幕！" : "太棒了";
+        String message = isRigged ? "命中注定今天去吃：" + result + "！" : "我们今天去吃：" + result + "！";
+        
         new AlertDialog.Builder(this)
-                .setTitle("决定了！")
-                .setMessage("我们今天去吃：" + result + "！")
-                .setPositiveButton("太棒了", null)
+                .setTitle(title)
+                .setMessage(message)
+                .setPositiveButton(positiveBtn, null)
                 .show();
     }
 
